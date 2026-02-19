@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arugga — 5-Year Budget</title>
+  <link rel="stylesheet" href="/public/css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <h1>Arugga</h1>
+      <span class="header-subtitle">5-Year Business Budget</span>
+    </div>
+    <div class="header-right">
+      <a href="/logout" class="btn-logout">Log Out</a>
+    </div>
+  </header>
+
+  <!-- Toolbar: Version + Scenario + Actions -->
+  <div class="app-toolbar">
+    <div class="toolbar-group">
+      <label class="toolbar-label">Version</label>
+      <select id="version-dropdown"></select>
+      <button id="btn-new-version" class="btn-toolbar">+ New</button>
+      <button id="btn-delete-version" class="btn-toolbar btn-toolbar-danger">Delete</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <label class="toolbar-label">Scenario</label>
+      <select id="scenario-dropdown">
+        <option value="base">Base Case</option>
+        <option value="worst">Worst Case</option>
+        <option value="best">Best Case</option>
+      </select>
+      <span id="scenario-badge" class="scenario-badge">Empty</span>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <button id="btn-recalculate" class="btn-toolbar btn-toolbar-primary">Recalculate</button>
+      <button id="btn-save-scenario" class="btn-toolbar btn-toolbar-save">Save Scenario</button>
+      <button id="btn-copy" class="btn-toolbar">Copy</button>
+      <button id="btn-reset" class="btn-toolbar">Reset</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="tab-assumptions">Assumptions</button>
+    <button class="tab-btn" data-tab="tab-annual">Annual Summary</button>
+    <button class="tab-btn" data-tab="tab-cashflow">Cash Flow &amp; P&amp;L</button>
+    <button class="tab-btn" data-tab="tab-loans">Loan Amortization</button>
+    <button class="tab-btn" data-tab="tab-operational">Operational Costs</button>
+    <button class="tab-btn" data-tab="tab-5ydata">5Y Data</button>
+    <button class="tab-btn" data-tab="tab-detailed-opex">5Y Operational Cost</button>
+    <button class="tab-btn" data-tab="tab-amortization">5Y Amortization</button>
+    <button class="tab-btn" data-tab="tab-headcount">5Y Headcount</button>
+    <button class="tab-btn" data-tab="tab-techsupport">5Y Tech Support</button>
+  </nav>
+
+  <!-- Copy Modal -->
+  <div id="copy-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <h3>Copy Assumptions</h3>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Source Version:</label>
+          <select id="copy-src-version"></select>
+        </div>
+        <div class="modal-field">
+          <label>Source Scenario:</label>
+          <select id="copy-src-scenario">
+            <option value="base">Base Case</option>
+            <option value="worst">Worst Case</option>
+            <option value="best">Best Case</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Target Version:</label>
+          <select id="copy-tgt-version"></select>
+        </div>
+        <div class="modal-field">
+          <label>Target Scenario:</label>
+          <select id="copy-tgt-scenario">
+            <option value="base">Base Case</option>
+            <option value="worst">Worst Case</option>
+            <option value="best">Best Case</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Years to copy:</label>
+        <div id="copy-years-checkboxes" class="copy-years-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-copy-confirm" class="btn-primary">Copy</button>
+        <button id="btn-copy-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="app-main">
+
+    <!-- TAB 1: Assumptions -->
+    <div class="tab-content active" id="tab-assumptions">
+      <div class="assumptions-grid">
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Hectares &amp; Robots</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="hectares-table">
+              <thead>
+                <tr><th></th><th id="ha-y0"></th><th id="ha-y1"></th><th id="ha-y2"></th><th id="ha-y3"></th><th id="ha-y4"></th></tr>
+              </thead>
+              <tbody id="hectares-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Quarterly Sales Distribution (%)</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="qdist-table">
+              <thead>
+                <tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr>
+              </thead>
+              <tbody id="qdist-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Leasing</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="lease-table">
+              <thead>
+                <tr><th></th><th id="lease-y0"></th><th id="lease-y1"></th><th id="lease-y2"></th><th id="lease-y3"></th><th id="lease-y4"></th></tr>
+              </thead>
+              <tbody id="lease-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Sales</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="sales-table">
+              <thead>
+                <tr><th></th><th id="sales-y0"></th><th id="sales-y1"></th><th id="sales-y2"></th><th id="sales-y3"></th><th id="sales-y4"></th></tr>
+              </thead>
+              <tbody id="sales-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Production Costs</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="production-table">
+              <thead>
+                <tr><th></th><th id="prod-y0"></th><th id="prod-y1"></th><th id="prod-y2"></th><th id="prod-y3"></th><th id="prod-y4"></th></tr>
+              </thead>
+              <tbody id="production-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Financial</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="financial-table">
+              <thead>
+                <tr><th></th><th id="fin-y0"></th><th id="fin-y1"></th><th id="fin-y2"></th><th id="fin-y3"></th><th id="fin-y4"></th></tr>
+              </thead>
+              <tbody id="financial-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>FCF Ratios</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="fcf-table">
+              <thead>
+                <tr><th></th><th id="fcf-y0"></th><th id="fcf-y1"></th><th id="fcf-y2"></th><th id="fcf-y3"></th><th id="fcf-y4"></th></tr>
+              </thead>
+              <tbody id="fcf-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Headcount &amp; Salaries</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="headcount-table">
+              <thead>
+                <tr id="headcount-header-row">
+                  <th>Department</th>
+                  <th>Avg Monthly Salary ($)</th>
+                </tr>
+              </thead>
+              <tbody id="headcount-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Customer Tech Support</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="techsupport-table">
+              <thead>
+                <tr><th></th><th id="ts-y0"></th><th id="ts-y1"></th><th id="ts-y2"></th><th id="ts-y3"></th><th id="ts-y4"></th></tr>
+              </thead>
+              <tbody id="techsupport-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset class="assumption-group assumption-group-wide">
+          <legend>Operational Costs (Monthly, $)</legend>
+          <div class="headcount-table-wrapper">
+            <table class="headcount-input-table" id="opcost-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th id="opcost-y0"></th><th id="opcost-y1"></th><th id="opcost-y2"></th><th id="opcost-y3"></th><th id="opcost-y4"></th>
+                </tr>
+              </thead>
+              <tbody id="opcost-body"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: Annual Summary -->
+    <div class="tab-content" id="tab-annual">
+      <div class="tab-section">
+        <h2 class="tab-section-title">Annual Summary</h2>
+        <div class="table-wrapper" id="table-annual"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Cash Flow & P&L -->
+    <div class="tab-content" id="tab-cashflow">
+      <div class="tab-section">
+        <h2 class="tab-section-title">Cash Flow &amp; P&amp;L (Monthly)</h2>
+        <div class="table-wrapper" id="table-cf-pl"></div>
+      </div>
+      <div class="tab-section">
+        <h2 class="tab-section-title">Credit Facility</h2>
+        <div class="table-wrapper" id="table-credit"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3b: Loan Amortization -->
+    <div class="tab-content" id="tab-loans">
+      <div class="tab-section">
+        <h2 class="tab-section-title">Loan Amortization</h2>
+        <div class="table-wrapper" id="table-loans"></div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Operational Costs -->
+    <div class="tab-content" id="tab-operational">
+      <div class="tab-section">
+        <h2 class="tab-section-title">Operational Costs</h2>
+        <div class="table-wrapper" id="table-operational"></div>
+      </div>
+    </div>
+
+    <!-- TAB 5: 5Y Data -->
+    <div class="tab-content" id="tab-5ydata">
+      <div class="tab-section">
+        <h2 class="tab-section-title">5Y Data — Revenue, Collections &amp; COGS</h2>
+        <div class="table-wrapper" id="table-5y-data"></div>
+      </div>
+    </div>
+
+    <!-- TAB 6: 5Y Operational Cost -->
+    <div class="tab-content" id="tab-detailed-opex">
+      <div class="tab-section">
+        <h2 class="tab-section-title">5Y Operational Cost (Monthly Breakdown)</h2>
+        <div class="table-wrapper" id="table-detailed-opex"></div>
+      </div>
+    </div>
+
+    <!-- TAB 7: 5Y Amortization -->
+    <div class="tab-content" id="tab-amortization">
+      <div class="tab-section">
+        <h2 class="tab-section-title">5Y Amortization — Credit &amp; Loans</h2>
+        <div class="table-wrapper" id="table-amortization"></div>
+      </div>
+    </div>
+
+    <!-- TAB 8: 5Y Headcount -->
+    <div class="tab-content" id="tab-headcount">
+      <div class="tab-section">
+        <h2 class="tab-section-title">5Y Quarterly Headcount</h2>
+        <div class="table-wrapper" id="table-headcount"></div>
+      </div>
+    </div>
+
+    <!-- TAB 9: 5Y Tech Support -->
+    <div class="tab-content" id="tab-techsupport">
+      <div class="tab-section">
+        <h2 class="tab-section-title">5Y Customer Tech Support</h2>
+        <div class="table-wrapper" id="table-techsupport-output"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/public/js/assumptions.js"></script>
+  <script src="/public/js/engine.js"></script>
+  <script src="/public/js/renderer.js"></script>
+  <script src="/public/js/app.js"></script>
+</body>
+</html>

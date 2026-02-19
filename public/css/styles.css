@@ -1,0 +1,508 @@
+/* Arugga 5-Year Budget — Styles */
+
+:root {
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --border: #dde1e6;
+  --text: #1a1a2e;
+  --text-muted: #6b7280;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --green: #16a34a;
+  --green-bg: #f0fdf4;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --header-bg: #1e293b;
+  --header-text: #f8fafc;
+  --cell-input-bg: #dbeafe;
+  --cell-formula-bg: #f1f5f9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* === Login === */
+.login-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.login-container {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 48px 40px;
+  width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.login-header { text-align: center; margin-bottom: 32px; }
+.login-header h1 { font-size: 28px; color: var(--primary); margin-bottom: 4px; }
+.login-header p { color: var(--text-muted); font-size: 14px; }
+
+.login-form .form-group { margin-bottom: 16px; }
+.login-form label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+.login-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+.login-form input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+.error-msg { color: var(--danger); font-size: 13px; margin-bottom: 12px; text-align: center; }
+
+.btn-login {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-login:hover { background: var(--primary-hover); }
+
+/* === App Header === */
+.app-header {
+  background: var(--header-bg);
+  color: var(--header-text);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-left { display: flex; align-items: baseline; gap: 12px; }
+.header-left h1 { font-size: 20px; }
+.header-subtitle { font-size: 13px; color: #94a3b8; }
+.btn-logout {
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 6px 14px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.btn-logout:hover { color: white; border-color: #64748b; }
+
+/* === Toolbar === */
+.app-toolbar {
+  background: #f1f5f9;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolbar-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+.toolbar-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+.app-toolbar select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  background: white;
+  cursor: pointer;
+  min-width: 140px;
+}
+.app-toolbar select:focus { outline: none; border-color: var(--primary); }
+
+.btn-toolbar {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: white;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-toolbar:hover { background: #e2e8f0; border-color: #94a3b8; }
+.btn-toolbar-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  font-weight: 600;
+}
+.btn-toolbar-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-toolbar-save {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+  font-weight: 600;
+}
+.btn-toolbar-save:hover { background: #15803d; border-color: #15803d; }
+.btn-toolbar-danger:hover { color: var(--danger); border-color: var(--danger); background: #fef2f2; }
+
+.scenario-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e2e8f0;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.scenario-badge.saved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* === Tab Bar === */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  gap: 0;
+  position: sticky;
+  top: 42px; /* below toolbar */
+  z-index: 99;
+}
+.tab-btn {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab-btn:hover {
+  color: var(--text);
+  background: #f8fafc;
+}
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* === Main Layout === */
+.app-main { padding: 16px 24px; max-width: 100%; }
+
+/* === Tab Content === */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.tab-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.tab-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+/* === Assumptions Grid === */
+.assumptions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.assumption-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.assumption-group legend {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--primary);
+  padding: 0 6px;
+}
+.assumption-group-wide {
+  grid-column: 1 / -1;
+}
+
+/* === Assumption Input Tables (Excel-like) === */
+.headcount-table-wrapper { overflow-x: auto; }
+.headcount-input-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.headcount-input-table th, .headcount-input-table td {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.headcount-input-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 11px;
+}
+.headcount-input-table th:not(:first-child) { text-align: center; }
+
+/* Editable cells — light blue background */
+td.cell-input {
+  background: var(--cell-input-bg);
+  text-align: right;
+  cursor: text;
+  min-width: 80px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+td.cell-input:focus {
+  background: #bfdbfe;
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+td.cell-input.hc-count {
+  min-width: 44px;
+}
+
+/* Year0 editable cells in 5Y Data — blue tint like Excel */
+td.y0-input {
+  background: #dbeafe;
+  min-width: 72px;
+}
+td.y0-input:focus {
+  background: #bfdbfe;
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* Year1 override cells — slightly different blue */
+td.y1-override {
+  background: #c7d2fe;
+  min-width: 72px;
+}
+td.y1-override:focus {
+  background: #a5b4fc;
+  box-shadow: inset 0 0 0 2px #4f46e5;
+}
+
+/* Formula cells — grey background, not editable */
+td.cell-formula {
+  background: var(--cell-formula-bg);
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Label column styling */
+.headcount-input-table td:first-child {
+  font-weight: 500;
+  background: #fafbfc;
+  white-space: nowrap;
+}
+
+/* === Action Buttons === */
+.btn-primary {
+  padding: 10px 28px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary {
+  padding: 10px 28px;
+  background: white;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+
+/* === Data Tables (output) === */
+.table-wrapper { overflow-x: auto; }
+
+.data-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+  width: max-content;
+  min-width: 100%;
+}
+.data-table th, .data-table td {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+}
+.data-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 11px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.data-table .sticky-col {
+  position: sticky;
+  left: 0;
+  background: #f8fafc;
+  z-index: 3;
+  font-weight: 600;
+  min-width: 140px;
+  text-align: left;
+  border-right: 2px solid #cbd5e1;
+}
+.data-table td.sticky-col { background: white; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table .year-start { border-left: 2px solid #94a3b8; }
+.data-table .year-header { text-align: center; background: var(--header-bg); color: white; font-size: 12px; }
+.data-table .spacer-row td { padding: 2px; border-left: none; border-right: none; }
+
+/* Color classes */
+.clr-revenue { color: var(--green); }
+.clr-cost { color: var(--red); }
+.clr-balance { color: var(--blue); }
+.clr-neutral { color: var(--text); }
+
+/* === Annual Table === */
+.annual-table { width: auto; min-width: auto; }
+.annual-table td, .annual-table th { padding: 6px 14px; }
+
+/* === Loan Tables === */
+.loan-section { margin-bottom: 24px; }
+.loan-section h3 { font-size: 14px; margin-bottom: 8px; color: var(--text); }
+.loan-table { width: auto; min-width: auto; }
+.loan-table td, .loan-table th { padding: 4px 12px; }
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .app-main { padding: 8px; }
+  .assumptions-grid { grid-template-columns: 1fr; }
+  .data-table .sticky-col { min-width: 100px; }
+  .app-toolbar { padding: 8px 12px; }
+  .tab-bar { padding: 0 8px; overflow-x: auto; }
+  .tab-btn { padding: 8px 12px; font-size: 12px; }
+}
+
+/* Scrollbar styling */
+.table-wrapper::-webkit-scrollbar { height: 8px; }
+.table-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+.table-wrapper::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+.table-wrapper::-webkit-scrollbar-thumb:hover { background: #64748b; }
+.headcount-table-wrapper::-webkit-scrollbar { height: 8px; }
+.headcount-table-wrapper::-webkit-scrollbar-track { background: #f1f5f9; }
+.headcount-table-wrapper::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+
+/* === Copy Modal === */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 24px 28px;
+  min-width: 420px;
+  max-width: 520px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+}
+.modal-content h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.modal-row {
+  display: flex;
+  gap: 12px;
+}
+.modal-row .modal-field { flex: 1; }
+.modal-field {
+  margin-bottom: 14px;
+}
+.modal-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+.modal-field select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.copy-years-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.copy-year-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #f8fafc;
+}
+.copy-year-label:hover { border-color: var(--primary); }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  justify-content: flex-end;
+}
