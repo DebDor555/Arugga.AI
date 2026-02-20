@@ -372,6 +372,18 @@ const Engine = (function () {
     }
 
     // ===== 11. Credit facility =====
+    // Compute effective credit facility limit from Cresson + Bank (backward compat)
+    const creditFacilityLimit = new Array(numYears).fill(0);
+    if (a.cressonCreditFacility && a.bankLineOfCredit) {
+      for (let y = 0; y < numYears; y++) {
+        creditFacilityLimit[y] = (a.cressonCreditFacility[y] || 0) + (a.bankLineOfCredit[y] || 0);
+      }
+    } else if (a.creditFacilityLimit) {
+      for (let y = 0; y < numYears; y++) {
+        creditFacilityLimit[y] = a.creditFacilityLimit[y] || 0;
+      }
+    }
+
     const creditDrawdowns = new Array(N).fill(0);
     const creditRepayments = new Array(N).fill(0);
     const creditBalance = new Array(N).fill(0);
@@ -380,7 +392,7 @@ const Engine = (function () {
     for (let m = 0; m < N; m++) {
       const yM = yearOf(m);
       const monthlyFacilityRate = (a.creditFacilityRate[yM] / 100) / 12;
-      const facilityLimit = a.creditFacilityLimit[yM];
+      const facilityLimit = creditFacilityLimit[yM];
       const prevBalance = m > 0 ? closingBalance[m - 1] : 0;
       const prevCreditBal = m > 0 ? creditBalance[m - 1] : 0;
 
@@ -432,6 +444,9 @@ const Engine = (function () {
         totalCollections: sum(totalCollections),
         cogs: sum(cogs),
         grossProfit: sum(grossProfit),
+        rdExpenses: sum(salaryCosts.rd),
+        smExpenses: sum(salaryCosts.sm),
+        gaExpenses: sum(salaryCosts.ga),
         totalSalaries: sum(totalSalaries),
         otherOpex: sum(otherOpex),
         totalOpex: sum(totalOpex),
@@ -443,9 +458,14 @@ const Engine = (function () {
         netIncome: sum(netIncome),
         capitalInflows: sum(capitalInflows),
         loanPayments: sum(loanPayments),
+        loanInterestAnnual: sum(loanInterest),
+        loanPrincipalAnnual: sum(loanPrincipal),
+        creditDrawdowns: sum(creditDrawdowns),
+        creditRepayments: sum(creditRepayments),
         supplierPayments: sum(supplierPayments),
         closingBalance: closingBalance[end - 1],
-        creditBalance: creditBalance[end - 1]
+        creditBalance: creditBalance[end - 1],
+        creditFacilityLimit: creditFacilityLimit[y]
       };
     });
 
@@ -509,6 +529,7 @@ const Engine = (function () {
     results.creditDrawdowns = creditDrawdowns;
     results.creditRepayments = creditRepayments;
     results.creditBalance = creditBalance;
+    results.creditFacilityLimit = creditFacilityLimit;
     results.creditInterestPaid = creditInterestPaid;
     results.closingBalance = closingBalance;
     results.grossProfit = grossProfit;

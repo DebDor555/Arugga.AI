@@ -83,10 +83,23 @@ const Renderer = (function () {
       const tr = document.createElement('tr');
       if (row.className) tr.className = row.className;
 
+      // Section header row
+      if (row.sectionHeader) {
+        tr.className = 'section-header';
+        const td0 = document.createElement('td');
+        td0.textContent = row.label;
+        td0.className = 'sticky-col';
+        td0.colSpan = labels.length + 1;
+        tr.appendChild(td0);
+        tbody.appendChild(tr);
+        return;
+      }
+
       const td0 = document.createElement('td');
       td0.textContent = row.label;
       td0.className = 'sticky-col';
       if (row.bold) td0.style.fontWeight = 'bold';
+      if (row.indent) td0.style.paddingLeft = (row.indent * 16 + 10) + 'px';
       tr.appendChild(td0);
 
       row.values.forEach((val, i) => {
@@ -95,7 +108,8 @@ const Renderer = (function () {
         td.className = 'num';
         if (i > 0 && i % 12 === 0) td.classList.add('year-start');
         if (row.bold) td.style.fontWeight = 'bold';
-        if (row.colorClass) td.classList.add(row.colorClass);
+        // Auto-color negatives red
+        if (typeof val === 'number' && val < 0) td.classList.add('num-negative');
         tr.appendChild(td);
       });
 
@@ -108,6 +122,10 @@ const Renderer = (function () {
 
   function spacerRow() {
     return { label: '', values: new Array(TOTAL_MONTHS).fill(''), format: 'text', className: 'spacer-row' };
+  }
+
+  function sectionHeader(label) {
+    return { label: label, sectionHeader: true, values: [] };
   }
 
   // ===== 5Y Data table (with year0 editable + 5 years calculated) =====
@@ -327,25 +345,66 @@ const Renderer = (function () {
   // Cash Flow & P&L table
   function renderCFPL(r, container) {
     container.innerHTML = '';
+
+    // Compute opening balance (previous month's closing)
+    var openingBalance = r.closingBalance.map(function (v, i) { return i > 0 ? r.closingBalance[i - 1] : 0; });
+
+    // Negate outflows for display (show as negative)
+    var negSupplier = r.supplierPayments.map(function (v) { return -v; });
+    var negOpex = r.totalOpex.map(function (v) { return -v; });
+    var negRoyalties = r.royalties.map(function (v) { return -v; });
+    var totalInterest = r.loanInterest.map(function (v, i) { return -(v + r.creditInterestPaid[i]); });
+    var negPrincipal = r.loanPrincipal.map(function (v) { return -v; });
+
+    // Compute a cash flow balance line
+    var cfBalance = openingBalance.map(function (ob, i) {
+      return ob + r.totalCollections[i] + r.creditDrawdowns[i] + r.capitalInflows[i]
+        - r.supplierPayments[i] - r.totalOpex[i] - r.royalties[i]
+        - r.loanInterest[i] - r.creditInterestPaid[i] - r.loanPrincipal[i];
+    });
+
     const rows = [
-      { label: 'Total Collections', values: r.totalCollections, colorClass: 'clr-revenue' },
-      { label: 'Capital Inflows', values: r.capitalInflows, colorClass: 'clr-revenue' },
-      { label: 'Credit Drawdowns', values: r.creditDrawdowns },
+      sectionHeader('CASH FLOW'),
+      { label: 'Opening Balance', values: openingBalance },
+      { label: 'Collections', values: r.totalCollections },
+      { label: 'Drawdown from Credit Facility', values: r.creditDrawdowns },
       spacerRow(),
-      { label: 'Total OPEX', values: r.totalOpex, colorClass: 'clr-cost' },
-      { label: 'Supplier Payments', values: r.supplierPayments, colorClass: 'clr-cost' },
-      { label: 'Loan Payments', values: r.loanPayments, colorClass: 'clr-cost' },
-      { label: 'IIA Royalties', values: r.royalties, colorClass: 'clr-cost' },
-      { label: 'Credit Repayments', values: r.creditRepayments, colorClass: 'clr-cost' },
-      { label: 'Credit Interest', values: r.creditInterestPaid, colorClass: 'clr-cost' },
+      { label: 'Raising Capital and Grants', values: r.capitalInflows },
       spacerRow(),
-      { label: 'Closing Balance', values: r.closingBalance, bold: true, colorClass: 'clr-balance' },
+      { label: 'Supplier Payment', values: negSupplier },
+      { label: 'Total Operational Costs', values: negOpex },
+      { label: 'Royalty Payments to IIA', values: negRoyalties },
+      { label: 'Interest Payment', values: totalInterest },
+      { label: 'Principal Payment', values: negPrincipal },
+      { label: 'Balance', values: cfBalance, bold: true },
       spacerRow(),
-      { label: 'Total Revenue', values: r.totalRevenue, colorClass: 'clr-revenue' },
-      { label: 'COGS', values: r.cogs, colorClass: 'clr-cost' },
-      { label: 'Gross Profit', values: r.grossProfit, bold: true },
-      { label: 'EBITDA', values: r.ebitda, bold: true },
-      { label: 'Net Income', values: r.netIncome, bold: true, colorClass: 'clr-balance' }
+      { label: 'Closing Principal Balance', values: r.creditBalance, bold: true },
+
+      spacerRow(),
+      sectionHeader('P&L'),
+      { label: 'Revenue', values: new Array(TOTAL_MONTHS).fill(''), format: 'text' },
+      { label: 'From Sales', values: r.salesRevenue, indent: 1 },
+      { label: 'From Lease', values: r.leaseRevenue, indent: 1 },
+      { label: 'Total Revenues', values: r.totalRevenue, bold: true, className: 'subtotal-row' },
+      spacerRow(),
+      { label: 'Hectares', values: r.cumulativeHectares, format: 'number' },
+      spacerRow(),
+      { label: 'Cost of Goods Sold', values: r.salesCOGS.map(function (v) { return -v; }) },
+      { label: 'Depreciation (Lease)', values: r.depreciation.map(function (v) { return -v; }) },
+      { label: 'Total Cost of Goods Sold', values: r.totalCOGSAccounting.map(function (v) { return -v; }), bold: true, className: 'subtotal-row' },
+      spacerRow(),
+      { label: 'Gross Margin', values: r.grossProfit, bold: true, className: 'total-row' },
+      spacerRow(),
+      { label: 'Total R&D Expenses', values: r.salaryCosts.rd.map(function (v) { return -v; }) },
+      { label: 'Total S&M Expenses', values: r.salaryCosts.sm.map(function (v) { return -v; }) },
+      { label: 'Total G&A Expenses', values: r.salaryCosts.ga.map(function (v) { return -v; }) },
+      { label: 'Sub Total', values: r.totalOpex.map(function (v) { return -v; }), bold: true, className: 'subtotal-row' },
+      spacerRow(),
+      { label: 'IIA Royalties', values: r.royalties.map(function (v) { return -v; }) },
+      spacerRow(),
+      { label: 'Operating Profit / Loss', values: r.ebitda.map(function (v, i) { return v - r.royalties[i]; }), bold: true, className: 'total-row' },
+      spacerRow(),
+      { label: 'EBITDA', values: r.ebitda, bold: true, className: 'total-row' }
     ];
     container.appendChild(buildMonthlyTable(null, rows, r.labels));
   }
@@ -354,6 +413,7 @@ const Renderer = (function () {
   function renderAnnual(r, container) {
     container.innerHTML = '';
     const annual = r.annual;
+    const numYears = YEARS.length;
     const table = document.createElement('table');
     table.className = 'data-table annual-table';
 
@@ -369,49 +429,113 @@ const Renderer = (function () {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    const fields = [
-      { key: 'hectaresAdded', label: 'Hectares Added', format: 'number' },
-      { key: 'cumulativeHectares', label: 'Cumulative Hectares', format: 'number', bold: true },
-      { key: 'leaseRevenue', label: 'Lease Revenue' },
-      { key: 'salesRevenue', label: 'Sales Revenue' },
-      { key: 'totalRevenue', label: 'Total Revenue', bold: true, colorClass: 'clr-revenue' },
-      { key: 'totalCollections', label: 'Total Collections' },
-      { key: 'cogs', label: 'COGS', colorClass: 'clr-cost' },
-      { key: 'grossProfit', label: 'Gross Profit', bold: true },
-      { key: 'totalSalaries', label: 'Total Salaries', colorClass: 'clr-cost' },
-      { key: 'otherOpex', label: 'Other OPEX', colorClass: 'clr-cost' },
-      { key: 'totalOpex', label: 'Total OPEX', bold: true, colorClass: 'clr-cost' },
-      { key: 'ebitda', label: 'EBITDA', bold: true },
-      { key: 'depreciation', label: 'Depreciation' },
-      { key: 'loanInterest', label: 'Loan Interest' },
-      { key: 'creditInterest', label: 'Credit Interest' },
-      { key: 'royalties', label: 'IIA Royalties' },
-      { key: 'netIncome', label: 'Net Income', bold: true, colorClass: 'clr-balance' },
-      { key: 'capitalInflows', label: 'Capital Inflows' },
-      { key: 'loanPayments', label: 'Loan Payments', colorClass: 'clr-cost' },
-      { key: 'supplierPayments', label: 'Supplier Payments', colorClass: 'clr-cost' },
-      { key: 'closingBalance', label: 'Closing Balance', bold: true, colorClass: 'clr-balance' },
-      { key: 'creditBalance', label: 'Credit Balance' }
-    ];
 
-    fields.forEach(f => {
+    // Helper: add a section header row
+    function addHeader(label) {
       const tr = document.createElement('tr');
+      tr.className = 'section-header';
+      const td = document.createElement('td');
+      td.className = 'sticky-col';
+      td.colSpan = numYears + 1;
+      td.textContent = label;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+
+    // Helper: add a data row
+    function addRow(label, values, opts) {
+      opts = opts || {};
+      const tr = document.createElement('tr');
+      if (opts.className) tr.className = opts.className;
       const tdl = document.createElement('td');
-      tdl.textContent = f.label;
+      tdl.textContent = label;
       tdl.className = 'sticky-col';
-      if (f.bold) tdl.style.fontWeight = 'bold';
+      if (opts.bold) tdl.style.fontWeight = 'bold';
+      if (opts.indent) tdl.style.paddingLeft = (opts.indent * 16 + 14) + 'px';
       tr.appendChild(tdl);
 
-      annual.forEach(yr => {
-        const td = document.createElement('td');
-        td.textContent = fmt(yr[f.key], f.format || 'currency');
-        td.className = 'num';
-        if (f.bold) td.style.fontWeight = 'bold';
-        if (f.colorClass) td.classList.add(f.colorClass);
-        tr.appendChild(td);
-      });
+      if (values.length === 0) {
+        // Label-only row: fill empty cells
+        for (let i = 0; i < numYears; i++) tr.appendChild(document.createElement('td'));
+      } else {
+        values.forEach(function (val) {
+          const td = document.createElement('td');
+          td.textContent = fmt(val, opts.format || 'currency');
+          td.className = 'num';
+          if (opts.bold) td.style.fontWeight = 'bold';
+          if (typeof val === 'number' && val < 0) td.classList.add('num-negative');
+          tr.appendChild(td);
+        });
+      }
       tbody.appendChild(tr);
-    });
+    }
+
+    // Helper: spacer
+    function addSpacer() {
+      const tr = document.createElement('tr');
+      tr.className = 'spacer-row';
+      const td0 = document.createElement('td');
+      td0.className = 'sticky-col';
+      tr.appendChild(td0);
+      for (let i = 0; i < numYears; i++) tr.appendChild(document.createElement('td'));
+      tbody.appendChild(tr);
+    }
+
+    // Helper: extract yearly values, optionally negate
+    function vals(key, negate) {
+      return annual.map(function (yr) { return negate ? -(yr[key] || 0) : (yr[key] || 0); });
+    }
+
+    // Compute opening balance per year (prev year closing, or 0)
+    var openingBal = annual.map(function (yr, i) { return i > 0 ? annual[i - 1].closingBalance : 0; });
+
+    // Cash flow balance = closing balance for each year
+    var cfBalance = annual.map(function (yr) { return yr.closingBalance; });
+
+    // === CASH FLOW ===
+    addHeader('CASH FLOW');
+    addRow('Opening Balance', openingBal);
+    addRow('Collections', vals('totalCollections'));
+    addRow('Drawdown from Credit Facility', vals('creditDrawdowns'));
+    addSpacer();
+    addRow('Raising Capital and Grants', vals('capitalInflows'));
+    addSpacer();
+    addRow('Supplier Payment', vals('supplierPayments', true));
+    addRow('Total Operational Costs', vals('totalOpex', true));
+    addRow('Royalty Payments to IIA', vals('royalties', true));
+    addRow('Interest Payment', annual.map(function (yr) { return -(yr.loanInterest + yr.creditInterest); }));
+    addRow('Principal Payment', annual.map(function (yr) { return -(yr.loanPrincipalAnnual || 0); }));
+    addRow('Balance', annual.map(function (yr) { return yr.closingBalance; }), { bold: true, className: 'total-row' });
+    addSpacer();
+    addRow('Closing Principal Balance', vals('creditBalance'), { bold: true });
+
+    addSpacer();
+
+    // === P&L ===
+    addHeader('P&L');
+    addRow('Revenue', [], { format: 'text' });
+    addRow('From Sales', vals('salesRevenue'), { indent: 1 });
+    addRow('From Lease', vals('leaseRevenue'), { indent: 1 });
+    addRow('Total Revenues', vals('totalRevenue'), { bold: true, className: 'subtotal-row' });
+    addSpacer();
+    addRow('Hectares', vals('cumulativeHectares'), { format: 'number' });
+    addSpacer();
+    addRow('Cost of Goods Sold', vals('cogs', true));
+    addRow('Depreciation (Lease)', vals('depreciation', true));
+    addRow('Total Cost of Goods Sold', annual.map(function (yr) { return -(yr.cogs + yr.depreciation); }), { bold: true, className: 'subtotal-row' });
+    addSpacer();
+    addRow('Gross Margin', vals('grossProfit'), { bold: true, className: 'total-row' });
+    addSpacer();
+    addRow('Total R&D Expenses', annual.map(function (yr) { return -(yr.rdExpenses || 0); }));
+    addRow('Total S&M Expenses', annual.map(function (yr) { return -(yr.smExpenses || 0); }));
+    addRow('Total G&A Expenses', annual.map(function (yr) { return -(yr.gaExpenses || 0); }));
+    addRow('Sub Total', vals('totalOpex', true), { bold: true, className: 'subtotal-row' });
+    addSpacer();
+    addRow('IIA Royalties', vals('royalties', true));
+    addSpacer();
+    addRow('Operating Profit / Loss', annual.map(function (yr) { return yr.grossProfit - yr.totalOpex - yr.royalties; }), { bold: true, className: 'total-row' });
+    addSpacer();
+    addRow('EBITDA', vals('ebitda'), { bold: true, className: 'total-row' });
 
     table.appendChild(tbody);
     container.appendChild(table);

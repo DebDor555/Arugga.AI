@@ -281,6 +281,31 @@ body {
 }
 .headcount-input-table th:not(:first-child) { text-align: center; }
 
+/* --- Aligned yearly tables: lock column widths across all tables --- */
+#hectares-table,
+#lease-table,
+#sales-table,
+#production-table,
+#financial-table,
+#fcf-table,
+#techsupport-table,
+#opcost-table {
+  table-layout: fixed;
+  width: 100%;
+}
+#hectares-table th:first-child,  #hectares-table td:first-child,
+#lease-table th:first-child,     #lease-table td:first-child,
+#sales-table th:first-child,     #sales-table td:first-child,
+#production-table th:first-child, #production-table td:first-child,
+#financial-table th:first-child,  #financial-table td:first-child,
+#fcf-table th:first-child,       #fcf-table td:first-child,
+#techsupport-table th:first-child, #techsupport-table td:first-child,
+#opcost-table th:first-child,    #opcost-table td:first-child {
+  width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Editable cells — light blue background */
 td.cell-input {
   background: var(--cell-input-bg);
@@ -329,6 +354,17 @@ td.cell-formula {
   min-width: 80px;
   font-size: 12px;
   font-style: italic;
+}
+
+/* Financial section header rows */
+.financial-section-header td {
+  background: #e2e8f0;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+  padding: 6px 8px;
+  border-bottom: 2px solid #94a3b8;
+  letter-spacing: 0.3px;
 }
 
 /* Label column styling */
@@ -402,10 +438,35 @@ td.cell-formula {
 .data-table .year-header { text-align: center; background: var(--header-bg); color: white; font-size: 12px; }
 .data-table .spacer-row td { padding: 2px; border-left: none; border-right: none; }
 
-/* Color classes */
-.clr-revenue { color: var(--green); }
-.clr-cost { color: var(--red); }
-.clr-balance { color: var(--blue); }
+/* Number coloring: black by default, red for negatives */
+.num-negative { color: #B0151B; }
+
+/* Section header rows in output tables */
+.data-table .section-header td {
+  background: #e2e8f0;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+  padding: 6px 10px;
+  border-bottom: 2px solid #94a3b8;
+}
+.data-table .section-header td.sticky-col {
+  background: #e2e8f0;
+}
+
+/* Subtotal / total rows in output tables */
+.data-table .subtotal-row td {
+  border-top: 1px solid #94a3b8;
+}
+.data-table .total-row td {
+  border-top: 2px solid #334155;
+  font-weight: 700;
+}
+
+/* Legacy color classes (kept for backward compat in other tabs) */
+.clr-revenue { color: var(--text); }
+.clr-cost { color: var(--text); }
+.clr-balance { color: var(--text); }
 .clr-neutral { color: var(--text); }
 
 /* === Annual Table === */

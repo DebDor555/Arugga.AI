@@ -84,6 +84,19 @@
     if (!a.subcontractorCostPerRobot) {
       a.subcontractorCostPerRobot = new Array(NUM_YEARS).fill(200);
     }
+    // Migrate creditFacilityLimit → cressonCreditFacility + bankLineOfCredit
+    if (!a.cressonCreditFacility) {
+      if (a.creditFacilityLimit) {
+        a.cressonCreditFacility = a.creditFacilityLimit.slice();
+      } else {
+        a.cressonCreditFacility = new Array(NUM_YEARS).fill(0);
+      }
+    }
+    if (!a.bankLineOfCredit) {
+      a.bankLineOfCredit = new Array(NUM_YEARS).fill(0);
+    }
+    // Remove legacy creditFacilityLimit (now computed at runtime)
+    delete a.creditFacilityLimit;
     // Add year0 and year1Overrides if missing
     if (!a.year0) {
       a.year0 = getEmptyYear0();
@@ -353,7 +366,7 @@
       'salesPrice', 'salesPrepaidRatio', 'salesAdvanceMonths', 'salesShipmentRatio',
       'robotLifetime', 'productionCost', 'rmPrepayMonths', 'paymentNetMonths', 'supplierPrepayRatio',
       'capitalRaised', 'capitalMonth',
-      'creditFacilityLimit', 'creditFacilityRate',
+      'cressonCreditFacility', 'bankLineOfCredit', 'creditFacilityRate',
       'bankLoansPerYear', 'bankLoanRate', 'bankLoanTerm',
       'collectionLoanPct', 'iiaRoyalties',
       'monthsOfActivity', 'opCostRatio', 'overdueRatio', 'collectionRatio',
@@ -532,6 +545,33 @@
         }
       });
     }
+    if (tbody.id === 'sales-body') {
+      // Payment upon Shipment = 100 - Prepaid Payment
+      for (var y = 0; y < YEARS.length; y++) {
+        var prepaidCell = tbody.querySelector('td[data-field="salesPrepaidRatio"][data-y="' + y + '"]');
+        var shipmentCell = tbody.querySelector('td[data-field="salesShipmentRatio"][data-y="' + y + '"]');
+        if (prepaidCell && shipmentCell) {
+          shipmentCell.textContent = formatCellValue(100 - parseCellValue(prepaidCell.textContent));
+        }
+      }
+    }
+    if (tbody.id === 'financial-body') {
+      // Update Credit Facility Effective = Cresson + Bank
+      for (var y = 0; y < YEARS.length; y++) {
+        var cresson = tbody.querySelector('td[data-field="cressonCreditFacility"][data-y="' + y + '"]');
+        var bank = tbody.querySelector('td[data-field="bankLineOfCredit"][data-y="' + y + '"]');
+        var effective = tbody.querySelector('td[data-field="creditFacilityEffective"][data-y="' + y + '"]');
+        if (cresson && bank && effective) {
+          effective.textContent = formatCellValue(parseCellValue(cresson.textContent) + parseCellValue(bank.textContent));
+        }
+        // Update Monthly Interest Rate
+        var rateCell = tbody.querySelector('td[data-field="bankLoanRate"][data-y="' + y + '"]');
+        var monthlyCell = tbody.querySelector('td[data-field="monthlyInterestRate"][data-y="' + y + '"]');
+        if (rateCell && monthlyCell) {
+          monthlyCell.textContent = formatCellValue(parseCellValue(rateCell.textContent) / 12);
+        }
+      }
+    }
   }
 
   // ====== Build tables with contenteditable cells ======
@@ -617,35 +657,215 @@
   }
 
   function populateSalesTable(a) {
+    var shipmentPct = a.salesPrepaidRatio.map(function (v) { return 100 - v; });
     buildYearlyTable('sales-body', [
       { label: 'Avg Sales Price ($)', field: 'salesPrice', cls: 'sales-input', values: a.salesPrice },
       { label: 'Prepaid Payment (%)', field: 'salesPrepaidRatio', cls: 'sales-input', values: a.salesPrepaidRatio },
       { label: 'Advance Payment (months)', field: 'salesAdvanceMonths', cls: 'sales-input', values: a.salesAdvanceMonths },
-      { label: 'Payment upon Shipment (%)', field: 'salesShipmentRatio', cls: 'sales-input', values: a.salesShipmentRatio }
+      { label: 'Payment upon Shipment (%)', field: 'salesShipmentRatio', values: shipmentPct, formula: true }
     ]);
   }
 
   function populateFcfTable(a) {
-    buildYearlyTable('fcf-body', [
-      { label: 'Months of Activity', field: 'monthsOfActivity', cls: 'fcf-input', values: a.monthsOfActivity },
-      { label: 'Operational Cost Ratio (%)', field: 'opCostRatio', cls: 'fcf-input', values: a.opCostRatio },
-      { label: 'Overdue Receivables (%)', field: 'overdueRatio', cls: 'fcf-input', values: a.overdueRatio },
-      { label: 'Collection Ratio (%)', field: 'collectionRatio', cls: 'fcf-input', values: a.collectionRatio }
-    ]);
+    var tbody = document.getElementById('fcf-body');
+    tbody.innerHTML = '';
+
+    var zeros = new Array(NUM_YEARS).fill(0);
+
+    var sections = [
+      { header: 'FCF — Free Cash Flow', rows: [
+        { label: 'Months of Activity', field: 'monthsOfActivity', cls: 'fcf-input', values: a.monthsOfActivity },
+        { label: 'Overdue Receivables (%)', field: 'overdueRatio', cls: 'fcf-input', values: a.overdueRatio },
+        { label: 'Collection (%)', field: 'collectionRatio', cls: 'fcf-input', values: a.collectionRatio }
+      ]},
+      { header: 'FCF Ratios (Calculated)', rows: [
+        { label: 'Months of Activity / Op. Cost ($)', field: 'fcfOpCostRatio', values: zeros, formula: true },
+        { label: 'Overdue Receivables ($)', field: 'fcfOverdueAmount', values: zeros, formula: true },
+        { label: 'Collection ($)', field: 'fcfCollectionAmount', values: zeros, formula: true }
+      ]}
+    ];
+
+    sections.forEach(function (section) {
+      var headerTr = document.createElement('tr');
+      headerTr.className = 'financial-section-header';
+      var headerTd = document.createElement('td');
+      headerTd.colSpan = YEARS.length + 1;
+      headerTd.textContent = section.header;
+      headerTr.appendChild(headerTd);
+      tbody.appendChild(headerTr);
+
+      section.rows.forEach(function (row) {
+        var tr = document.createElement('tr');
+        var tdLabel = document.createElement('td');
+        tdLabel.textContent = row.label;
+        tr.appendChild(tdLabel);
+
+        for (var y = 0; y < YEARS.length; y++) {
+          var td = document.createElement('td');
+          td.dataset.field = row.field;
+          td.dataset.y = String(y);
+          if (row.cls) td.classList.add(row.cls);
+
+          if (row.formula) {
+            td.classList.add('cell-formula');
+            td.textContent = formatCellValue(row.values[y]);
+          } else {
+            td.contentEditable = 'true';
+            td.classList.add('cell-input');
+            td.textContent = formatCellValue(row.values[y]);
+          }
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function updateFcfFormulas(results) {
+    if (!results || !results.annual) return;
+
+    var annual = results.annual;
+    for (var y = 0; y < YEARS.length; y++) {
+      // Months of Activity / Op. Cost = monthsOfActivity * (annualOpex / 12)
+      var moCell = document.querySelector('td.fcf-input[data-field="monthsOfActivity"][data-y="' + y + '"]');
+      var months = moCell ? parseCellValue(moCell.textContent) : 12;
+      var annualOpex = annual[y].totalOpex || 0;
+      var opCostVal = months * (annualOpex / 12);
+
+      var opCostCell = document.querySelector('td.cell-formula[data-field="fcfOpCostRatio"][data-y="' + y + '"]');
+      if (opCostCell) opCostCell.textContent = formatCellValue(Math.round(opCostVal));
+
+      // Overdue Receivables = overdueRatio% * existing lease payments (annual)
+      var overdueCell = document.querySelector('td.fcf-input[data-field="overdueRatio"][data-y="' + y + '"]');
+      var overduePct = overdueCell ? parseCellValue(overdueCell.textContent) : 0;
+      var existingPayments = 0;
+      var start = y * 12, end = start + 12;
+      for (var m = start; m < end; m++) {
+        existingPayments += (results.existingLeasePayment[m] || 0);
+      }
+      var overdueVal = existingPayments * (overduePct / 100);
+      var overdueAmtCell = document.querySelector('td.cell-formula[data-field="fcfOverdueAmount"][data-y="' + y + '"]');
+      if (overdueAmtCell) overdueAmtCell.textContent = formatCellValue(Math.round(overdueVal));
+
+      // Collection = collectionRatio% * total collections (annual)
+      var collCell = document.querySelector('td.fcf-input[data-field="collectionRatio"][data-y="' + y + '"]');
+      var collPct = collCell ? parseCellValue(collCell.textContent) : 0;
+      var annualCollections = annual[y].totalCollections || 0;
+      var collVal = annualCollections * (collPct / 100);
+      var collAmtCell = document.querySelector('td.cell-formula[data-field="fcfCollectionAmount"][data-y="' + y + '"]');
+      if (collAmtCell) collAmtCell.textContent = formatCellValue(Math.round(collVal));
+    }
   }
 
   function populateFinancialTable(a) {
-    buildYearlyTable('financial-body', [
-      { label: 'Capital Raised ($)', field: 'capitalRaised', cls: 'fin-input', values: a.capitalRaised },
-      { label: 'Capital Raise Month (1-12)', field: 'capitalMonth', cls: 'fin-input', values: a.capitalMonth },
-      { label: 'Credit Facility Limit ($)', field: 'creditFacilityLimit', cls: 'fin-input', values: a.creditFacilityLimit },
-      { label: 'Credit Facility Interest (%)', field: 'creditFacilityRate', cls: 'fin-input', values: a.creditFacilityRate },
-      { label: 'Bank Loan Amount ($)', field: 'bankLoansPerYear', cls: 'fin-input', values: a.bankLoansPerYear },
-      { label: 'Bank Loan Interest (%)', field: 'bankLoanRate', cls: 'fin-input', values: a.bankLoanRate },
-      { label: 'Bank Loan Term (years)', field: 'bankLoanTerm', cls: 'fin-input', values: a.bankLoanTerm },
-      { label: 'Collection to Loan Repay (%)', field: 'collectionLoanPct', cls: 'fin-input', values: a.collectionLoanPct },
-      { label: 'IIA Royalties (%)', field: 'iiaRoyalties', cls: 'fin-input', values: a.iiaRoyalties }
-    ]);
+    var tbody = document.getElementById('financial-body');
+    tbody.innerHTML = '';
+
+    // Compute effective credit facility for display
+    var effectiveCredit = new Array(NUM_YEARS).fill(0);
+    var monthlyInterestRate = new Array(NUM_YEARS).fill(0);
+    for (var i = 0; i < NUM_YEARS; i++) {
+      effectiveCredit[i] = (a.cressonCreditFacility ? a.cressonCreditFacility[i] : 0)
+                         + (a.bankLineOfCredit ? a.bankLineOfCredit[i] : 0);
+      monthlyInterestRate[i] = a.bankLoanRate ? (a.bankLoanRate[i] / 12) : 0;
+    }
+
+    // Placeholder zeros for formula rows that get filled after recalculate
+    var zeros = new Array(NUM_YEARS).fill(0);
+
+    var sections = [
+      { header: 'Raising Capital & Grants', rows: [
+        { label: 'Capital Raised ($)', field: 'capitalRaised', cls: 'fin-input', values: a.capitalRaised },
+        { label: 'Capital Raise Month (1-12)', field: 'capitalMonth', cls: 'fin-input', values: a.capitalMonth }
+      ]},
+      { header: 'Lines of Credit', rows: [
+        { label: 'Cresson Credit Facility ($)', field: 'cressonCreditFacility', cls: 'fin-input', values: a.cressonCreditFacility || zeros },
+        { label: 'Bank Line of Credit ($)', field: 'bankLineOfCredit', cls: 'fin-input', values: a.bankLineOfCredit || zeros },
+        { label: 'Credit Facility Effective ($)', field: 'creditFacilityEffective', values: effectiveCredit, formula: true },
+        { label: 'Credit Facility Interest (%)', field: 'creditFacilityRate', cls: 'fin-input', values: a.creditFacilityRate }
+      ]},
+      { header: 'Bank Loan', rows: [
+        { label: 'Bank Loan Amount ($)', field: 'bankLoansPerYear', cls: 'fin-input', values: a.bankLoansPerYear },
+        { label: 'Bank Loan Interest Rate (%)', field: 'bankLoanRate', cls: 'fin-input', values: a.bankLoanRate },
+        { label: 'Bank Loan Term (years)', field: 'bankLoanTerm', cls: 'fin-input', values: a.bankLoanTerm },
+        { label: 'Interest Payment ($)', field: 'loanInterestAnnual', values: zeros, formula: true },
+        { label: 'Principal Repayment ($)', field: 'loanPrincipalAnnual', values: zeros, formula: true },
+        { label: 'Amortization Schedule ($)', field: 'loanPaymentsAnnual', values: zeros, formula: true }
+      ]},
+      { header: 'Parameters', rows: [
+        { label: 'Collection to Loan Repay (%)', field: 'collectionLoanPct', cls: 'fin-input', values: a.collectionLoanPct },
+        { label: 'Monthly Interest Rate (%)', field: 'monthlyInterestRate', values: monthlyInterestRate, formula: true },
+        { label: 'Min FCF ($)', field: 'minFcf', values: zeros, formula: true }
+      ]},
+      { header: 'IIA Royalties', rows: [
+        { label: 'IIA Royalties (%)', field: 'iiaRoyalties', cls: 'fin-input', values: a.iiaRoyalties }
+      ]}
+    ];
+
+    sections.forEach(function (section) {
+      // Section header row
+      var headerTr = document.createElement('tr');
+      headerTr.className = 'financial-section-header';
+      var headerTd = document.createElement('td');
+      headerTd.colSpan = YEARS.length + 1;
+      headerTd.textContent = section.header;
+      headerTr.appendChild(headerTd);
+      tbody.appendChild(headerTr);
+
+      // Data rows
+      section.rows.forEach(function (row) {
+        var tr = document.createElement('tr');
+        var tdLabel = document.createElement('td');
+        tdLabel.textContent = row.label;
+        tr.appendChild(tdLabel);
+
+        for (var y = 0; y < YEARS.length; y++) {
+          var td = document.createElement('td');
+          td.dataset.field = row.field;
+          td.dataset.y = String(y);
+          if (row.cls) td.classList.add(row.cls);
+
+          if (row.formula) {
+            td.classList.add('cell-formula');
+            td.textContent = formatCellValue(row.values[y]);
+          } else {
+            td.contentEditable = 'true';
+            td.classList.add('cell-input');
+            td.textContent = formatCellValue(row.values[y]);
+          }
+
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function updateFinancialFormulas(results) {
+    if (!results || !results.annual) return;
+
+    var annual = results.annual;
+    var fields = {
+      creditFacilityEffective: function (y) { return annual[y].creditFacilityLimit || 0; },
+      loanInterestAnnual: function (y) { return annual[y].loanInterestAnnual || 0; },
+      loanPrincipalAnnual: function (y) { return annual[y].loanPrincipalAnnual || 0; },
+      loanPaymentsAnnual: function (y) { return annual[y].loanPayments || 0; },
+      monthlyInterestRate: function (y) {
+        // Read current bankLoanRate from the input cells
+        var rateCell = document.querySelector('td.fin-input[data-field="bankLoanRate"][data-y="' + y + '"]');
+        var rate = rateCell ? parseCellValue(rateCell.textContent) : 0;
+        return rate / 12;
+      },
+      minFcf: function (y) { return annual[y].closingBalance || 0; }
+    };
+
+    for (var field in fields) {
+      var cells = document.querySelectorAll('td.cell-formula[data-field="' + field + '"]');
+      cells.forEach(function (td) {
+        var y = parseInt(td.dataset.y);
+        td.textContent = formatCellValue(fields[field](y));
+      });
+    }
   }
 
   function populateProductionTable(a) {
@@ -739,6 +959,9 @@
     // Leasing % is a formula: compute from salesPct
     a.leasingPct = a.salesPct.map(function (s) { return 100 - s; });
 
+    // Shipment % is a formula: compute from salesPrepaidRatio
+    a.salesShipmentRatio = a.salesPrepaidRatio.map(function (p) { return 100 - p; });
+
     // Quarterly distribution
     document.querySelectorAll('td.qdist-input').forEach(function (td) {
       var y = parseInt(td.dataset.y);
@@ -797,6 +1020,10 @@
       Renderer.renderCreditAmortization(results, document.getElementById('table-amortization'));
       Renderer.renderQuarterlyHeadcount(currentAssumptions, document.getElementById('table-headcount'));
       Renderer.renderCustomerTechSupport(results, currentAssumptions, document.getElementById('table-techsupport-output'));
+
+      // Update financial formula cells with engine output
+      updateFinancialFormulas(results);
+      updateFcfFormulas(results);
 
       // Auto-save to current scenario
       if (activeVersionKey && versions[activeVersionKey]) {
