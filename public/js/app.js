@@ -1170,5 +1170,15 @@
     });
 
     recalculate();
+
+    // === Dynamic toolbar height for sticky tab-bar positioning ===
+    function updateToolbarHeight() {
+      var toolbar = document.querySelector('.app-toolbar');
+      if (toolbar) {
+        document.documentElement.style.setProperty('--toolbar-height', toolbar.offsetHeight + 'px');
+      }
+    }
+    updateToolbarHeight();
+    window.addEventListener('resize', updateToolbarHeight);
   });
 })();

@@ -19,6 +19,7 @@
   --header-text: #f8fafc;
   --cell-input-bg: #dbeafe;
   --cell-formula-bg: #f1f5f9;
+  --toolbar-height: 42px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,7 +45,7 @@ body {
   background: var(--surface);
   border-radius: 12px;
   padding: 48px 40px;
-  width: 380px;
+  width: min(380px, calc(100vw - 32px));
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
 
@@ -193,7 +194,7 @@ body {
   display: flex;
   gap: 0;
   position: sticky;
-  top: 42px; /* below toolbar */
+  top: var(--toolbar-height, 42px); /* below toolbar — updated dynamically by JS */
   z-index: 99;
 }
 .tab-btn {
@@ -479,14 +480,100 @@ td.cell-formula {
 .loan-table { width: auto; min-width: auto; }
 .loan-table td, .loan-table th { padding: 4px 12px; }
 
-/* === Responsive === */
+/* === Responsive — Tablet (≤1024px) === */
+@media (max-width: 1024px) {
+  .app-main { padding: 12px 16px; }
+  .assumptions-grid { grid-template-columns: 1fr; }
+  .app-toolbar { gap: 8px; }
+  .tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 10px 14px; white-space: nowrap; }
+  /* Reduce first-column width on tablet */
+  #hectares-table th:first-child,  #hectares-table td:first-child,
+  #lease-table th:first-child,     #lease-table td:first-child,
+  #sales-table th:first-child,     #sales-table td:first-child,
+  #production-table th:first-child, #production-table td:first-child,
+  #financial-table th:first-child,  #financial-table td:first-child,
+  #fcf-table th:first-child,        #fcf-table td:first-child,
+  #techsupport-table th:first-child, #techsupport-table td:first-child,
+  #opcost-table th:first-child,     #opcost-table td:first-child {
+    width: 200px;
+  }
+  .modal-content { min-width: unset; width: min(520px, 90vw); }
+}
+
+/* === Responsive — Mobile (≤768px) === */
 @media (max-width: 768px) {
   .app-main { padding: 8px; }
-  .assumptions-grid { grid-template-columns: 1fr; }
-  .data-table .sticky-col { min-width: 100px; }
-  .app-toolbar { padding: 8px 12px; }
-  .tab-bar { padding: 0 8px; overflow-x: auto; }
+  .data-table .sticky-col { min-width: 90px; }
+  /* Toolbar: horizontal scroll, single row, no wrapping */
+  .app-toolbar {
+    padding: 8px 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .app-toolbar::-webkit-scrollbar { display: none; }
+  .toolbar-divider { flex-shrink: 0; }
+  .toolbar-group { flex-shrink: 0; }
+  /* Tab bar */
+  .tab-bar { padding: 0 8px; }
   .tab-btn { padding: 8px 12px; font-size: 12px; }
+  /* Buttons: bigger touch targets */
+  .btn-toolbar { padding: 7px 10px; min-height: 36px; }
+  /* Modal: full-width friendly */
+  .modal-content {
+    min-width: unset;
+    width: calc(100vw - 32px);
+    padding: 20px 16px;
+  }
+  .modal-row { flex-direction: column; gap: 0; }
+  /* Reduce first-column width on mobile */
+  #hectares-table th:first-child,  #hectares-table td:first-child,
+  #lease-table th:first-child,     #lease-table td:first-child,
+  #sales-table th:first-child,     #sales-table td:first-child,
+  #production-table th:first-child, #production-table td:first-child,
+  #financial-table th:first-child,  #financial-table td:first-child,
+  #fcf-table th:first-child,        #fcf-table td:first-child,
+  #techsupport-table th:first-child, #techsupport-table td:first-child,
+  #opcost-table th:first-child,     #opcost-table td:first-child {
+    width: 150px;
+  }
+}
+
+/* === Responsive — Small Mobile (≤480px) === */
+@media (max-width: 480px) {
+  /* Login */
+  .login-container { padding: 28px 20px; }
+  .login-header h1 { font-size: 24px; }
+  /* Header */
+  .app-header { padding: 8px 12px; }
+  .header-left h1 { font-size: 17px; }
+  .header-subtitle { display: none; }
+  .btn-logout { padding: 5px 10px; font-size: 12px; }
+  /* Toolbar */
+  .app-toolbar { padding: 6px 8px; gap: 6px; }
+  .toolbar-label { display: none; }
+  .btn-toolbar { padding: 6px 9px; font-size: 12px; }
+  .app-toolbar select { min-width: 110px; font-size: 12px; }
+  /* Tab bar */
+  .tab-btn { padding: 8px 10px; font-size: 11px; }
+  /* Reduce first-column width further on small phones */
+  #hectares-table th:first-child,  #hectares-table td:first-child,
+  #lease-table th:first-child,     #lease-table td:first-child,
+  #sales-table th:first-child,     #sales-table td:first-child,
+  #production-table th:first-child, #production-table td:first-child,
+  #financial-table th:first-child,  #financial-table td:first-child,
+  #fcf-table th:first-child,        #fcf-table td:first-child,
+  #techsupport-table th:first-child, #techsupport-table td:first-child,
+  #opcost-table th:first-child,     #opcost-table td:first-child {
+    width: 120px;
+  }
 }
 
 /* Scrollbar styling */
