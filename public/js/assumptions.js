@@ -13,6 +13,50 @@ function setVersion(startYear) {
   TOTAL_MONTHS = NUM_YEARS * 12;
 }
 
+// Create empty per-role headcount structure matching Excel 5Y_QTR_Headcount sheet
+function makeEmptyHeadcount() {
+  var q = function () { return new Array(NUM_YEARS * 4).fill(0); };
+  return {
+    rd: {
+      label: 'Research & Development',
+      roles: [
+        { role: 'VP R&D',      salary: 0, quarters: q() },
+        { role: 'Engineer',    salary: 0, quarters: q() },
+        { role: 'Programmer',  salary: 0, quarters: q() },
+        { role: 'QA',          salary: 0, quarters: q() },
+        { role: 'Agronomist',  salary: 0, quarters: q() },
+        { role: 'CTO',         salary: 0, quarters: q() },
+        { role: 'IT',          salary: 0, quarters: q() }
+      ]
+    },
+    sm: {
+      label: 'Sales & Marketing',
+      roles: [
+        { role: 'VP Business Development',  salary: 0, quarters: q() },
+        { role: 'VP Marketing & Sales',     salary: 0, quarters: q() },
+        { role: 'Sales Manager',            salary: 0, quarters: q() },
+        { role: 'Sales Coordinator',        salary: 0, quarters: q() },
+        { role: 'Customer Service Manager', salary: 0, quarters: q() },
+        { role: 'Technicians',              salary: 0, quarters: q() },
+        { role: 'Marketing Manager',        salary: 0, quarters: q() }
+      ]
+    },
+    ga: {
+      label: 'General & Administrative',
+      roles: [
+        { role: 'CEO',             salary: 0, quarters: q() },
+        { role: 'CFO',             salary: 0, quarters: q() },
+        { role: 'COO',             salary: 0, quarters: q() },
+        { role: 'Accountant',      salary: 0, quarters: q() },
+        { role: 'Controller',      salary: 0, quarters: q() },
+        { role: 'Administration',  salary: 0, quarters: q() },
+        { role: 'Procurement',     salary: 0, quarters: q() },
+        { role: 'Human Resources', salary: 0, quarters: q() }
+      ]
+    }
+  };
+}
+
 // Create empty year0 data (12-month manual arrays for the year before version start)
 function getEmptyYear0() {
   var z12 = function () { return new Array(12).fill(0); };
@@ -75,11 +119,7 @@ function getEmptyAssumptions() {
     collectionRatio:    new Array(NUM_YEARS).fill(90),
     sparePartsPerRobot:       new Array(NUM_YEARS).fill(50),
     subcontractorCostPerRobot:new Array(NUM_YEARS).fill(200),
-    headcount: {
-      rd: { label: 'R&D', salary: 0, quarters: new Array(NUM_YEARS * 4).fill(0) },
-      sm: { label: 'S&M', salary: 0, quarters: new Array(NUM_YEARS * 4).fill(0) },
-      ga: { label: 'G&A', salary: 0, quarters: new Array(NUM_YEARS * 4).fill(0) }
-    },
+    headcount: makeEmptyHeadcount(),
     operationalCosts: {
       subcontractors:  { label: 'Subcontractors',       yearly: z() },
       materials:       { label: 'Materials & Supplies',  yearly: z() },
@@ -142,16 +182,41 @@ function getLegacyDefaults() {
     subcontractorCostPerRobot:[200, 180, 170, 160, 150, 150],
     headcount: {
       rd: {
-        label: 'R&D', salary: 12000,
-        quarters: [8,8,10,10, 12,12,14,14, 16,16,18,18, 20,20,22,22, 24,24,24,24, 24,24,24,24]
+        label: 'Research & Development',
+        roles: [
+          { role: 'VP R&D',      salary: 10000, quarters: [0.5,0.5,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'Engineer',    salary: 10000, quarters: [5,5,6,7,   7,7,7,8, 8,8,8,8, 9,9,9,9, 9,9,9,9] },
+          { role: 'Programmer',  salary: 13500, quarters: [5,6,6,7,   7,7,7,8, 8,8,8,8, 8,8,8,8, 8,8,8,8] },
+          { role: 'QA',          salary: 5000,  quarters: [1,1,2,2,   2,2,2,2, 2,2,2,2, 2,2,2,2, 2,2,2,2] },
+          { role: 'Agronomist',  salary: 8000,  quarters: [1,1,2,2,   2,2,2,3, 3,3,3,3, 4,4,4,4, 4,4,4,4] },
+          { role: 'CTO',         salary: 15000, quarters: [0,0,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'IT',          salary: 5000,  quarters: [0,0,0,0,   0,0,0,0.5, 0.5,0.5,0.5,0.5, 1,1,1,1, 1,1,1,1] }
+        ]
       },
       sm: {
-        label: 'S&M', salary: 10000,
-        quarters: [3,3,4,4, 5,5,6,6, 7,7,8,8, 9,9,10,10, 11,11,12,12, 12,12,12,12]
+        label: 'Sales & Marketing',
+        roles: [
+          { role: 'VP Business Development',  salary: 18000, quarters: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'VP Marketing & Sales',     salary: 18000, quarters: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'Sales Manager',            salary: 12000, quarters: [1,2,3,3, 3,3,3,4, 4,4,4,4, 4,4,4,5, 5,5,5,5] },
+          { role: 'Sales Coordinator',        salary: 5000,  quarters: [1,1,1,1, 1,1,1,2, 2,2,2,2, 2,2,2,3, 3,3,3,3] },
+          { role: 'Customer Service Manager', salary: 6000,  quarters: [1,1,1,1, 1,1,2,2, 2,2,2,2, 2,2,2,3, 3,3,3,3] },
+          { role: 'Technicians',              salary: 5000,  quarters: [0,1,1,1, 1,1,2,2, 2,2,2,2, 2,2,2,2, 2,2,2,2] },
+          { role: 'Marketing Manager',        salary: 10000, quarters: [0.5,0.5,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] }
+        ]
       },
       ga: {
-        label: 'G&A', salary: 9000,
-        quarters: [3,3,3,3, 4,4,4,4, 5,5,5,5, 6,6,6,6, 7,7,7,7, 7,7,7,7]
+        label: 'General & Administrative',
+        roles: [
+          { role: 'CEO',             salary: 10000, quarters: [0.5,0.5,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'CFO',             salary: 10000, quarters: [0.5,0.5,0.5,0.5, 0.5,0.5,0.5,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'COO',             salary: 10000, quarters: [0.5,0.5,0.5,0.5, 0.5,0.5,0.5,0.5, 0.5,0.5,0.5,0.5, 0.5,0.5,0.5,0.5, 1,1,1,1] },
+          { role: 'Accountant',      salary: 10000, quarters: [0,0,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'Controller',      salary: 6000,  quarters: [1,1,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'Administration',  salary: 6000,  quarters: [1,1,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 2,2,2,2] },
+          { role: 'Procurement',     salary: 6000,  quarters: [1,1,1,1,   1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+          { role: 'Human Resources', salary: 7000,  quarters: [0,0,0,0,   0,0,0,0.5, 0.5,0.5,0.5,0.5, 0.5,0.5,0.5,0.5, 1,1,1,1] }
+        ]
       }
     },
     operationalCosts: {
@@ -211,13 +276,8 @@ function migrateLegacyTo5Year() {
     year1Overrides: { salesHectaresAccrual: 0, salesNetPayment: 0 }
   };
 
-  for (const dept of ['rd', 'sm', 'ga']) {
-    a.headcount[dept] = {
-      label: legacy.headcount[dept].label,
-      salary: legacy.headcount[dept].salary,
-      quarters: legacy.headcount[dept].quarters.slice(0, NUM_YEARS * 4)
-    };
-  }
+  // Headcount is already per-role with exactly NUM_YEARS*4 quarters — use as-is
+  a.headcount = JSON.parse(JSON.stringify(legacy.headcount));
 
   for (const key in legacy.operationalCosts) {
     a.operationalCosts[key] = {

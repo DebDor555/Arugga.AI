@@ -612,13 +612,17 @@ const Renderer = (function () {
   function renderDetailedOperational(r, a, container) {
     container.innerHTML = '';
 
-    // Build FTE arrays per dept (monthly, from quarterly data)
+    // Build FTE arrays per dept (monthly, summed across all roles)
     function deptFTEs(dept) {
       var arr = new Array(TOTAL_MONTHS).fill(0);
-      var hc = a.headcount[dept];
+      var roles = (a.headcount[dept] && a.headcount[dept].roles) || [];
       for (var m = 0; m < TOTAL_MONTHS; m++) {
         var qIdx = Math.floor(m / 12) * 4 + Math.floor((m % 12) / 3);
-        arr[m] = hc.quarters[qIdx] || 0;
+        var total = 0;
+        for (var ri = 0; ri < roles.length; ri++) {
+          total += roles[ri].quarters[qIdx] || 0;
+        }
+        arr[m] = total;
       }
       return arr;
     }
@@ -722,7 +726,28 @@ const Renderer = (function () {
 
     var tbody = document.createElement('tbody');
 
-    function addDeptSection(dept, label) {
+    // Helper: sum FTEs across all roles for a dept at a given quarter index
+    function deptTotalFTEs(dept, qi) {
+      var roles = (a.headcount[dept] && a.headcount[dept].roles) || [];
+      var total = 0;
+      for (var ri = 0; ri < roles.length; ri++) total += roles[ri].quarters[qi] || 0;
+      return total;
+    }
+
+    // Helper: sum cost (SUMPRODUCT salary×FTEs×3 months) for a dept at a given quarter index
+    function deptTotalCost(dept, qi) {
+      var roles = (a.headcount[dept] && a.headcount[dept].roles) || [];
+      var total = 0;
+      for (var ri = 0; ri < roles.length; ri++) total += (roles[ri].quarters[qi] || 0) * (roles[ri].salary || 0) * 3;
+      return total;
+    }
+
+    function addDeptSection(dept) {
+      var hcDept = a.headcount[dept];
+      var label = hcDept ? hcDept.label.toUpperCase() : dept.toUpperCase();
+      var roles = (hcDept && hcDept.roles) || [];
+
+      // Department header row
       var hdr = document.createElement('tr');
       hdr.className = 'spacer-row';
       var hdrTd = document.createElement('td');
@@ -733,49 +758,89 @@ const Renderer = (function () {
       for (var c = 0; c < numQ + 1; c++) hdr.appendChild(document.createElement('td'));
       tbody.appendChild(hdr);
 
-      var hc = a.headcount[dept];
-      var tr = document.createElement('tr');
-      var tdLabel = document.createElement('td');
-      tdLabel.className = 'sticky-col';
-      tdLabel.textContent = hc.label + ' Staff';
-      tr.appendChild(tdLabel);
+      // Individual role rows
+      for (var ri = 0; ri < roles.length; ri++) {
+        var role = roles[ri];
+        var tr = document.createElement('tr');
+        var tdLabel = document.createElement('td');
+        tdLabel.className = 'sticky-col';
+        tdLabel.textContent = role.role;
+        tr.appendChild(tdLabel);
 
-      var tdSalary = document.createElement('td');
-      tdSalary.className = 'num';
-      tdSalary.textContent = fmt(hc.salary, 'currency');
-      tr.appendChild(tdSalary);
+        var tdSalary = document.createElement('td');
+        tdSalary.className = 'num';
+        tdSalary.textContent = fmt(role.salary, 'currency');
+        tr.appendChild(tdSalary);
 
+        for (var qi = 0; qi < numQ; qi++) {
+          var td = document.createElement('td');
+          td.className = 'num';
+          var fte = role.quarters[qi];
+          td.textContent = (fte !== undefined && fte !== 0) ? fte : (fte === 0 ? '0' : '');
+          if (qi % 4 === 0) td.classList.add('year-start');
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      // Total FTEs row (formula: SUM of all role FTEs)
+      var fteTr = document.createElement('tr');
+      var fteLabel = document.createElement('td');
+      fteLabel.className = 'sticky-col';
+      fteLabel.textContent = 'Total FTEs';
+      fteLabel.style.fontWeight = 'bold';
+      fteTr.appendChild(fteLabel);
+      fteTr.appendChild(document.createElement('td'));
       for (var qi = 0; qi < numQ; qi++) {
         var td = document.createElement('td');
         td.className = 'num';
-        td.textContent = hc.quarters[qi] || 0;
+        td.style.fontWeight = 'bold';
+        td.textContent = deptTotalFTEs(dept, qi);
         if (qi % 4 === 0) td.classList.add('year-start');
-        tr.appendChild(td);
+        fteTr.appendChild(td);
       }
-      tbody.appendChild(tr);
+      tbody.appendChild(fteTr);
 
+      // Total Cost row (formula: SUMPRODUCT salary×FTEs×3 months)
       var costTr = document.createElement('tr');
       var costLabel = document.createElement('td');
       costLabel.className = 'sticky-col';
-      costLabel.textContent = hc.label + ' Total Cost';
+      costLabel.textContent = 'Total Cost';
       costLabel.style.fontWeight = 'bold';
       costTr.appendChild(costLabel);
       costTr.appendChild(document.createElement('td'));
       for (var qi = 0; qi < numQ; qi++) {
         var td = document.createElement('td');
-        td.className = 'num';
-        var qCost = (hc.quarters[qi] || 0) * hc.salary * 3;
-        td.textContent = fmt(qCost, 'currency');
+        td.className = 'num clr-cost';
         td.style.fontWeight = 'bold';
+        td.textContent = fmt(deptTotalCost(dept, qi), 'currency');
         if (qi % 4 === 0) td.classList.add('year-start');
         costTr.appendChild(td);
       }
       tbody.appendChild(costTr);
+
+      // Average Cost row (formula: Total Cost / Total FTEs)
+      var avgTr = document.createElement('tr');
+      var avgLabel = document.createElement('td');
+      avgLabel.className = 'sticky-col';
+      avgLabel.textContent = 'Avg Cost / FTE';
+      avgTr.appendChild(avgLabel);
+      avgTr.appendChild(document.createElement('td'));
+      for (var qi = 0; qi < numQ; qi++) {
+        var td = document.createElement('td');
+        td.className = 'num';
+        var totalFTEs = deptTotalFTEs(dept, qi);
+        var totalCost = deptTotalCost(dept, qi);
+        td.textContent = totalFTEs > 0 ? fmt(totalCost / totalFTEs, 'currency') : '';
+        if (qi % 4 === 0) td.classList.add('year-start');
+        avgTr.appendChild(td);
+      }
+      tbody.appendChild(avgTr);
     }
 
-    addDeptSection('rd', 'RESEARCH & DEVELOPMENT');
-    addDeptSection('sm', 'SALES & MARKETING');
-    addDeptSection('ga', 'GENERAL & ADMINISTRATIVE');
+    addDeptSection('rd');
+    addDeptSection('sm');
+    addDeptSection('ga');
 
     var spacer = document.createElement('tr');
     spacer.className = 'spacer-row';
@@ -785,6 +850,7 @@ const Renderer = (function () {
     for (var c = 0; c < numQ + 1; c++) spacer.appendChild(document.createElement('td'));
     tbody.appendChild(spacer);
 
+    // Grand Total FTEs row
     var totalTr = document.createElement('tr');
     var totalLabel = document.createElement('td');
     totalLabel.className = 'sticky-col';
@@ -798,7 +864,7 @@ const Renderer = (function () {
       td.style.fontWeight = 'bold';
       var total = 0;
       for (var d = 0; d < ['rd', 'sm', 'ga'].length; d++) {
-        total += a.headcount[['rd', 'sm', 'ga'][d]].quarters[qi] || 0;
+        total += deptTotalFTEs(['rd', 'sm', 'ga'][d], qi);
       }
       td.textContent = total;
       if (qi % 4 === 0) td.classList.add('year-start');
@@ -806,6 +872,7 @@ const Renderer = (function () {
     }
     tbody.appendChild(totalTr);
 
+    // Grand Total Cost row
     var totalCostTr = document.createElement('tr');
     var totalCostLabel = document.createElement('td');
     totalCostLabel.className = 'sticky-col';
@@ -820,8 +887,7 @@ const Renderer = (function () {
       td.classList.add('clr-cost');
       var total = 0;
       for (var d = 0; d < ['rd', 'sm', 'ga'].length; d++) {
-        var dept = ['rd', 'sm', 'ga'][d];
-        total += (a.headcount[dept].quarters[qi] || 0) * a.headcount[dept].salary * 3;
+        total += deptTotalCost(['rd', 'sm', 'ga'][d], qi);
       }
       td.textContent = fmt(total, 'currency');
       if (qi % 4 === 0) td.classList.add('year-start');

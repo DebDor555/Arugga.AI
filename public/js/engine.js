@@ -268,12 +268,16 @@ const Engine = (function () {
     const totalSalaries = new Array(N).fill(0);
 
     for (const dept of ['rd', 'sm', 'ga']) {
-      const hc = a.headcount[dept];
+      const hcDept = a.headcount[dept];
+      const roles = hcDept.roles || [];
       for (let m = 0; m < N; m++) {
         const qIdx = yearOf(m) * 4 + quarterOf(m);
-        const headcount = hc.quarters[qIdx] || 0;
-        salaryCosts[dept][m] = headcount * hc.salary;
-        totalSalaries[m] += salaryCosts[dept][m];
+        let cost = 0;
+        for (let ri = 0; ri < roles.length; ri++) {
+          cost += (roles[ri].quarters[qIdx] || 0) * (roles[ri].salary || 0);
+        }
+        salaryCosts[dept][m] = cost;
+        totalSalaries[m] += cost;
       }
     }
 

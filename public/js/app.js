@@ -104,6 +104,21 @@
     if (!a.year1Overrides) {
       a.year1Overrides = { salesHectaresAccrual: 0, salesNetPayment: 0 };
     }
+    // Migrate old flat headcount {label,salary,quarters[]} → per-role structure
+    if (a.headcount) {
+      var needsRoleMigration = false;
+      for (var dept of ['rd', 'sm', 'ga']) {
+        if (a.headcount[dept] && !a.headcount[dept].roles) {
+          needsRoleMigration = true;
+          break;
+        }
+      }
+      if (needsRoleMigration) {
+        a.headcount = makeEmptyHeadcount();
+      }
+    } else {
+      a.headcount = makeEmptyHeadcount();
+    }
   }
 
   // ====== Version management ======
@@ -389,16 +404,19 @@
 
       for (var d = 0; d < ['rd', 'sm', 'ga'].length; d++) {
         var dept = ['rd', 'sm', 'ga'][d];
-        for (var q = 0; q < 4; q++) {
-          var srcQ = srcIdx * 4 + q;
-          var tgtQ = tgtIdx * 4 + q;
-          if (srcData.headcount[dept] && srcData.headcount[dept].quarters[srcQ] !== undefined) {
-            tgtData.headcount[dept].quarters[tgtQ] = srcData.headcount[dept].quarters[srcQ];
+        var srcRoles = srcData.headcount[dept] && srcData.headcount[dept].roles;
+        var tgtRoles = tgtData.headcount[dept] && tgtData.headcount[dept].roles;
+        if (srcRoles && tgtRoles) {
+          for (var ri = 0; ri < Math.min(srcRoles.length, tgtRoles.length); ri++) {
+            tgtRoles[ri].salary = srcRoles[ri].salary;
+            for (var q = 0; q < 4; q++) {
+              var srcQ = srcIdx * 4 + q;
+              var tgtQ = tgtIdx * 4 + q;
+              if (srcRoles[ri].quarters[srcQ] !== undefined) {
+                tgtRoles[ri].quarters[tgtQ] = srcRoles[ri].quarters[srcQ];
+              }
+            }
           }
-        }
-        // Also copy salary if source has it
-        if (srcData.headcount[dept] && srcData.headcount[dept].salary) {
-          tgtData.headcount[dept].salary = srcData.headcount[dept].salary;
         }
       }
 
@@ -885,31 +903,49 @@
     var depts = ['rd', 'sm', 'ga'];
     for (var d = 0; d < depts.length; d++) {
       var dept = depts[d];
-      var hc = a.headcount[dept];
-      var tr = document.createElement('tr');
+      var hcDept = a.headcount[dept];
 
-      var tdLabel = document.createElement('td');
-      tdLabel.textContent = hc.label;
-      tr.appendChild(tdLabel);
+      // Department header row
+      var hdrTr = document.createElement('tr');
+      hdrTr.className = 'hc-dept-header';
+      var hdrTd = document.createElement('td');
+      hdrTd.colSpan = 2 + NUM_YEARS * 4;
+      hdrTd.textContent = hcDept.label.toUpperCase();
+      hdrTd.style.fontWeight = 'bold';
+      hdrTd.style.background = 'var(--header-bg, #e8f0fe)';
+      hdrTr.appendChild(hdrTd);
+      tbody.appendChild(hdrTr);
 
-      var tdSalary = document.createElement('td');
-      tdSalary.contentEditable = 'true';
-      tdSalary.classList.add('cell-input', 'hc-salary');
-      tdSalary.dataset.dept = dept;
-      tdSalary.textContent = formatCellValue(hc.salary);
-      tr.appendChild(tdSalary);
+      var roles = hcDept.roles || [];
+      for (var ri = 0; ri < roles.length; ri++) {
+        var role = roles[ri];
+        var tr = document.createElement('tr');
 
-      for (var q = 0; q < NUM_YEARS * 4; q++) {
-        var td = document.createElement('td');
-        td.contentEditable = 'true';
-        td.classList.add('cell-input', 'hc-count');
-        td.dataset.dept = dept;
-        td.dataset.q = String(q);
-        td.textContent = hc.quarters[q];
-        tr.appendChild(td);
+        var tdLabel = document.createElement('td');
+        tdLabel.textContent = role.role;
+        tr.appendChild(tdLabel);
+
+        var tdSalary = document.createElement('td');
+        tdSalary.contentEditable = 'true';
+        tdSalary.classList.add('cell-input', 'hc-salary');
+        tdSalary.dataset.dept = dept;
+        tdSalary.dataset.role = String(ri);
+        tdSalary.textContent = formatCellValue(role.salary);
+        tr.appendChild(tdSalary);
+
+        for (var q = 0; q < NUM_YEARS * 4; q++) {
+          var td = document.createElement('td');
+          td.contentEditable = 'true';
+          td.classList.add('cell-input', 'hc-count');
+          td.dataset.dept = dept;
+          td.dataset.role = String(ri);
+          td.dataset.q = String(q);
+          td.textContent = role.quarters[q] !== undefined ? role.quarters[q] : 0;
+          tr.appendChild(td);
+        }
+
+        tbody.appendChild(tr);
       }
-
-      tbody.appendChild(tr);
     }
   }
 
@@ -969,12 +1005,21 @@
       a.quarterlyDist[y][q] = parseCellValue(td.textContent);
     });
 
-    // Headcount
+    // Headcount (per-role)
     document.querySelectorAll('td.hc-salary').forEach(function (td) {
-      a.headcount[td.dataset.dept].salary = parseCellValue(td.textContent);
+      var dept = td.dataset.dept;
+      var ri = parseInt(td.dataset.role);
+      if (a.headcount[dept] && a.headcount[dept].roles[ri] !== undefined) {
+        a.headcount[dept].roles[ri].salary = parseCellValue(td.textContent);
+      }
     });
     document.querySelectorAll('td.hc-count').forEach(function (td) {
-      a.headcount[td.dataset.dept].quarters[parseInt(td.dataset.q)] = parseCellValue(td.textContent);
+      var dept = td.dataset.dept;
+      var ri = parseInt(td.dataset.role);
+      var q = parseInt(td.dataset.q);
+      if (a.headcount[dept] && a.headcount[dept].roles[ri] !== undefined) {
+        a.headcount[dept].roles[ri].quarters[q] = parseCellValue(td.textContent);
+      }
     });
 
     // Operational costs
