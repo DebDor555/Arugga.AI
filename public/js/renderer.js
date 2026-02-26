@@ -758,7 +758,7 @@ const Renderer = (function () {
       for (var c = 0; c < numQ + 1; c++) hdr.appendChild(document.createElement('td'));
       tbody.appendChild(hdr);
 
-      // Individual role rows
+      // Individual role rows — salary and FTE cells are EDITABLE (blue, manual entry)
       for (var ri = 0; ri < roles.length; ri++) {
         var role = roles[ri];
         var tr = document.createElement('tr');
@@ -768,15 +768,22 @@ const Renderer = (function () {
         tr.appendChild(tdLabel);
 
         var tdSalary = document.createElement('td');
-        tdSalary.className = 'num';
-        tdSalary.textContent = fmt(role.salary, 'currency');
+        tdSalary.contentEditable = 'true';
+        tdSalary.className = 'num cell-input hc-out-salary';
+        tdSalary.dataset.dept = dept;
+        tdSalary.dataset.role = String(ri);
+        tdSalary.textContent = role.salary || 0;
         tr.appendChild(tdSalary);
 
         for (var qi = 0; qi < numQ; qi++) {
           var td = document.createElement('td');
-          td.className = 'num';
+          td.contentEditable = 'true';
+          td.className = 'num cell-input hc-out-fte';
+          td.dataset.dept = dept;
+          td.dataset.role = String(ri);
+          td.dataset.q = String(qi);
           var fte = role.quarters[qi];
-          td.textContent = (fte !== undefined && fte !== 0) ? fte : (fte === 0 ? '0' : '');
+          td.textContent = (fte !== undefined) ? fte : 0;
           if (qi % 4 === 0) td.classList.add('year-start');
           tr.appendChild(td);
         }
@@ -795,6 +802,9 @@ const Renderer = (function () {
         var td = document.createElement('td');
         td.className = 'num';
         td.style.fontWeight = 'bold';
+        td.dataset.hcRow = 'total-ftes';
+        td.dataset.hcDept = dept;
+        td.dataset.hcQ = String(qi);
         td.textContent = deptTotalFTEs(dept, qi);
         if (qi % 4 === 0) td.classList.add('year-start');
         fteTr.appendChild(td);
@@ -813,6 +823,9 @@ const Renderer = (function () {
         var td = document.createElement('td');
         td.className = 'num clr-cost';
         td.style.fontWeight = 'bold';
+        td.dataset.hcRow = 'total-cost';
+        td.dataset.hcDept = dept;
+        td.dataset.hcQ = String(qi);
         td.textContent = fmt(deptTotalCost(dept, qi), 'currency');
         if (qi % 4 === 0) td.classList.add('year-start');
         costTr.appendChild(td);
@@ -829,6 +842,9 @@ const Renderer = (function () {
       for (var qi = 0; qi < numQ; qi++) {
         var td = document.createElement('td');
         td.className = 'num';
+        td.dataset.hcRow = 'avg-cost';
+        td.dataset.hcDept = dept;
+        td.dataset.hcQ = String(qi);
         var totalFTEs = deptTotalFTEs(dept, qi);
         var totalCost = deptTotalCost(dept, qi);
         td.textContent = totalFTEs > 0 ? fmt(totalCost / totalFTEs, 'currency') : '';
@@ -862,6 +878,8 @@ const Renderer = (function () {
       var td = document.createElement('td');
       td.className = 'num';
       td.style.fontWeight = 'bold';
+      td.dataset.hcRow = 'grand-ftes';
+      td.dataset.hcQ = String(qi);
       var total = 0;
       for (var d = 0; d < ['rd', 'sm', 'ga'].length; d++) {
         total += deptTotalFTEs(['rd', 'sm', 'ga'][d], qi);
@@ -885,6 +903,8 @@ const Renderer = (function () {
       td.className = 'num';
       td.style.fontWeight = 'bold';
       td.classList.add('clr-cost');
+      td.dataset.hcRow = 'grand-cost';
+      td.dataset.hcQ = String(qi);
       var total = 0;
       for (var d = 0; d < ['rd', 'sm', 'ga'].length; d++) {
         total += deptTotalCost(['rd', 'sm', 'ga'][d], qi);

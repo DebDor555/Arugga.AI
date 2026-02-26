@@ -105,19 +105,26 @@
       a.year1Overrides = { salesHectaresAccrual: 0, salesNetPayment: 0 };
     }
     // Migrate old flat headcount {label,salary,quarters[]} → per-role structure
+    // Also init with Excel defaults if all salaries are zero (freshly migrated or new)
     if (a.headcount) {
       var needsRoleMigration = false;
-      for (var dept of ['rd', 'sm', 'ga']) {
-        if (a.headcount[dept] && !a.headcount[dept].roles) {
-          needsRoleMigration = true;
-          break;
+      for (var _d of ['rd', 'sm', 'ga']) {
+        if (a.headcount[_d] && !a.headcount[_d].roles) { needsRoleMigration = true; break; }
+      }
+      var needsDataInit = !needsRoleMigration;
+      if (needsDataInit) {
+        outer: for (var _d of ['rd', 'sm', 'ga']) {
+          var _roles = a.headcount[_d] && a.headcount[_d].roles || [];
+          for (var _ri = 0; _ri < _roles.length; _ri++) {
+            if (_roles[_ri].salary > 0) { needsDataInit = false; break outer; }
+          }
         }
       }
-      if (needsRoleMigration) {
-        a.headcount = makeEmptyHeadcount();
+      if (needsRoleMigration || needsDataInit) {
+        a.headcount = JSON.parse(JSON.stringify(getDefaultAssumptions().headcount));
       }
     } else {
-      a.headcount = makeEmptyHeadcount();
+      a.headcount = JSON.parse(JSON.stringify(getDefaultAssumptions().headcount));
     }
   }
 
@@ -550,6 +557,78 @@
       var tbody = cell.closest('tbody');
       if (tbody) updateFormulas(tbody);
     });
+
+    // Headcount output tab: sync editable cells back to currentAssumptions + update formula rows
+    document.addEventListener('focusout', function (e) {
+      var cell = e.target;
+      if (!cell.classList || !cell.closest('#table-headcount')) return;
+      if (!currentAssumptions) return;
+
+      var dept = cell.dataset.dept;
+      var ri = parseInt(cell.dataset.role);
+      var container = document.getElementById('table-headcount');
+
+      if (cell.classList.contains('hc-out-salary') && dept && !isNaN(ri)) {
+        var val = parseCellValue(cell.textContent);
+        cell.textContent = val;
+        currentAssumptions.headcount[dept].roles[ri].salary = val;
+        var sync = document.querySelector('td.hc-salary[data-dept="' + dept + '"][data-role="' + ri + '"]');
+        if (sync) sync.textContent = formatCellValue(val);
+        updateHCFormulas(container, dept);
+        updateHCGrandTotals(container);
+
+      } else if (cell.classList.contains('hc-out-fte') && dept && !isNaN(ri)) {
+        var q = parseInt(cell.dataset.q);
+        var val = parseCellValue(cell.textContent);
+        cell.textContent = val;
+        currentAssumptions.headcount[dept].roles[ri].quarters[q] = val;
+        var sync = document.querySelector('td.hc-count[data-dept="' + dept + '"][data-role="' + ri + '"][data-q="' + q + '"]');
+        if (sync) sync.textContent = formatCellValue(val);
+        updateHCFormulas(container, dept);
+        updateHCGrandTotals(container);
+      }
+    }, true);
+  }
+
+  function fmtCurrency(val) {
+    return '$' + Math.round(val || 0).toLocaleString('en-US');
+  }
+
+  function updateHCFormulas(container, dept) {
+    var roles = currentAssumptions.headcount[dept] && currentAssumptions.headcount[dept].roles || [];
+    var numQ = YEARS.length * 4;
+    for (var qi = 0; qi < numQ; qi++) {
+      var totalFTEs = 0, totalCost = 0;
+      for (var ri = 0; ri < roles.length; ri++) {
+        totalFTEs += roles[ri].quarters[qi] || 0;
+        totalCost += (roles[ri].quarters[qi] || 0) * (roles[ri].salary || 0) * 3;
+      }
+      var ftCell = container.querySelector('[data-hc-row="total-ftes"][data-hc-dept="' + dept + '"][data-hc-q="' + qi + '"]');
+      if (ftCell) ftCell.textContent = totalFTEs;
+      var tcCell = container.querySelector('[data-hc-row="total-cost"][data-hc-dept="' + dept + '"][data-hc-q="' + qi + '"]');
+      if (tcCell) tcCell.textContent = fmtCurrency(totalCost);
+      var acCell = container.querySelector('[data-hc-row="avg-cost"][data-hc-dept="' + dept + '"][data-hc-q="' + qi + '"]');
+      if (acCell) acCell.textContent = totalFTEs > 0 ? fmtCurrency(totalCost / totalFTEs) : '';
+    }
+  }
+
+  function updateHCGrandTotals(container) {
+    var numQ = YEARS.length * 4;
+    var depts = ['rd', 'sm', 'ga'];
+    for (var qi = 0; qi < numQ; qi++) {
+      var grandFTEs = 0, grandCost = 0;
+      for (var d = 0; d < depts.length; d++) {
+        var roles = currentAssumptions.headcount[depts[d]] && currentAssumptions.headcount[depts[d]].roles || [];
+        for (var ri = 0; ri < roles.length; ri++) {
+          grandFTEs += roles[ri].quarters[qi] || 0;
+          grandCost += (roles[ri].quarters[qi] || 0) * (roles[ri].salary || 0) * 3;
+        }
+      }
+      var gf = container.querySelector('[data-hc-row="grand-ftes"][data-hc-q="' + qi + '"]');
+      if (gf) gf.textContent = grandFTEs;
+      var gc = container.querySelector('[data-hc-row="grand-cost"][data-hc-q="' + qi + '"]');
+      if (gc) gc.textContent = fmtCurrency(grandCost);
+    }
   }
 
   // ====== Formula updates ======
@@ -912,7 +991,7 @@
       hdrTd.colSpan = 2 + NUM_YEARS * 4;
       hdrTd.textContent = hcDept.label.toUpperCase();
       hdrTd.style.fontWeight = 'bold';
-      hdrTd.style.background = 'var(--header-bg, #e8f0fe)';
+      hdrTd.style.background = 'var(--cell-formula-bg, #f1f5f9)';
       hdrTr.appendChild(hdrTd);
       tbody.appendChild(hdrTr);
 
